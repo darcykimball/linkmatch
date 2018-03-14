@@ -2,9 +2,18 @@
 module Event where
 
 
+import Network.Simple.TCP
+
 import qualified Data.Map as M
 import qualified Data.Text as T
 
+
+sUB_PORT :: ServiceName
+sUB_PORT = "9999"
+
+
+bROKER_PORT :: ServiceName
+bROKER_PORT = "8888"
 
 -- An event attribute
 data Attr = Attr {

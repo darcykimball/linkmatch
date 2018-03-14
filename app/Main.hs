@@ -1,14 +1,22 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 
+import Data.Aeson
 import Data.Monoid ((<>))
 import Network.Simple.TCP
 import Options.Applicative
 
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+
 import Broker
 import Subscriber
 import Publisher
+import EqMatchTree
 import Event
 
 
@@ -27,9 +35,51 @@ main = do
 
 
 start :: ModeCfg -> IO ()
-start BrokerCfg{..} = undefined
-start SubCfg{..} = undefined
-start PubCfg{..} = undefined
+start BrokerCfg{..} = do
+  -- Read in topology file
+  schema <- readSchema _brokerSchemaPath
+
+  undefined
+
+start SubCfg{..} = do
+  -- Read in subs file
+  schema <- readSchema _subSchemaPath
+
+  -- Read in predicates
+  preds <- readPreds _subPredsPath
+
+  runSubscriber preds _subIP _subPort _subBrokerIP _subBrokerPort
+
+
+start PubCfg{..} = do
+  -- Read in schema
+  schema <- readSchema _pubSchemaPath
+
+  runPublisher schema _pubBrokerIP _pubBrokerPort (ringN 3)
+
+--
+-- Util
+--
+
+
+readSchema :: FilePath -> IO EventSchema
+readSchema path = do
+  schemaText <- B.readFile path
+
+  maybe
+    (error "Bad schema file!")
+    return 
+    (decode $ LB.fromStrict schemaText)
+  
+
+readPreds :: FilePath -> IO [Predicate]
+readPreds path = do
+  predsText <- B.readFile path
+
+  maybe
+    (error "Bad schema file!")
+    return 
+    (decode (LB.fromStrict predsText) :: Maybe [Predicate])
 
 
 --
@@ -38,11 +88,11 @@ start PubCfg{..} = undefined
 
 
 brokerOpts :: Parser ModeCfg
-brokerOpts = brokerFlag *> (BrokerCfg <$> myIP <*> myPort)
+brokerOpts = brokerFlag *> (BrokerCfg <$> myIP <*> myPort <*> schemaPath)
 
 
 pubOpts :: Parser ModeCfg
-pubOpts = pubFlag *> (PubCfg <$> myIP <*> brokerIP <*> brokerPort <*> schemaPath)
+pubOpts = pubFlag *> (PubCfg <$> brokerIP <*> brokerPort <*> schemaPath)
 
 
 subOpts :: Parser ModeCfg
@@ -66,10 +116,10 @@ data ModeCfg =
     BrokerCfg {
       _brokerIP :: HostName
     , _brokerPort :: ServiceName
+    , _brokerSchemaPath :: FilePath
     }
   | PubCfg {
-      _pubIP :: HostName
-    , _pubBrokerIP :: HostName
+      _pubBrokerIP :: HostName
     , _pubBrokerPort :: ServiceName
     , _pubSchemaPath :: FilePath
     }
@@ -79,6 +129,6 @@ data ModeCfg =
     , _subBrokerIP :: HostName
     , _subBrokerPort :: ServiceName
     , _subSchemaPath :: FilePath
-    , _subPredicatesPath :: FilePath
+    , _subPredsPath:: FilePath
     }
   deriving (Show, Eq, Ord)

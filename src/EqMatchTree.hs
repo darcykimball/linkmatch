@@ -36,11 +36,11 @@ empty =  Empty
 -- supplied schema, returns Nothing.
 buildFromPredicates ::
   EventSchema ->
-  [(Predicate, sub)] ->
+  [(sub, Predicate)] ->
   Maybe (EqMatchTree sub)
 buildFromPredicates schema subPreds = foldl' addSubPred (Just Empty) subPreds
   where
-    addSubPred mTree (pred, sub) = mTree >>= addSubscriberPred schema pred sub
+    addSubPred mTree (sub, pred) = mTree >>= addSubscriberPred schema pred sub
 
 
 -- Add a subscriber to the matching tree. If supplied predicates are
@@ -60,6 +60,13 @@ addSubscriberPred schema pred sub tree
         
         -- Easier to just canonicalize: TODO
 
+
+lookupSubscribers :: [Attr] -> EqMatchTree sub -> [sub]
+lookupSubscribers attrs tree =
+  case tree of
+    _ -> undefined 
+  where
+    sorted = sortOn _attrName attrs
       
 
 -- Check if a predicate is consistent with a schema
