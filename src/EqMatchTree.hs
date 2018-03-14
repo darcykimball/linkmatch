@@ -51,8 +51,16 @@ addSubscriberPred ::
   sub ->
   EqMatchTree sub ->
   Maybe (EqMatchTree sub)
-addSubscriberPred schema [] sub tree = undefined
+addSubscriberPred schema pred sub tree
+  | predIsConsistent schema pred = Nothing
+  | otherwise = undefined
+      where
+        schemaAttrs = M.assocs schema -- stack of sorted schema attrs
+        tests = sort $ map toP pred -- assoc. list of tests to results
+        
+        -- Easier to just canonicalize: TODO
 
+      
 
 -- Check if a predicate is consistent with a schema
 predIsConsistent :: EventSchema -> Predicate -> Bool
@@ -60,4 +68,23 @@ predIsConsistent schema attrs =
   M.intersection schema schemaSubset == schemaSubset
   where
     schemaSubset = M.fromList $ map (toP . makeSchemaAttr) attrs
-    toP (Attr name val) = (name, val)
+
+
+-- Check if a predicate is ok with a schema, and add wildcards if necessary
+canonPred :: EventSchema -> Predicate -> Maybe [(AttrName, Maybe AttrValue)]
+canonPred schema pred =
+  if predIsConsistent schema pred
+    then Nothing
+    else Just canonicalized
+  where
+    assocPred = map toP pred
+    canonicalized = map makeTest $ M.keys schema
+    makeTest name =
+      maybe
+        (name, Nothing)
+        (\val -> (name, Just val))
+        (lookup name assocPred)
+
+
+-- Utility fn...
+toP (Attr name val) = (name, val)
