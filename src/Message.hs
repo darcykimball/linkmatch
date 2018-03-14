@@ -24,23 +24,21 @@ import Event
 --
 
 
--- A publisher message
-data PubMsg = PubMsg {
-    pubMsg   :: T.Text
-  , pubAttrs :: [Attr]  
-  } deriving (Generic, Show, Eq, Ord)
-
-
--- A subscriber message
-data SubMsg = SubMsg {
-    subPreds :: [Predicate]
-  } deriving (Generic, Show, Eq, Ord)
-
-
--- A broker forwarding msg
-data FwdMsg = FwdMsg {
-    fwdMsg :: T.Text
-  } deriving (Generic, Show, Eq, Ord)
+data Msg =
+    -- A publisher message
+    PubMsg {
+      pubMsg   :: T.Text
+    , pubAttrs :: [Attr]  
+    }
+    -- A subscriber message
+  | SubMsg {
+      subPreds :: [Predicate]
+    } 
+  -- A broker forwarding msg
+  | FwdMsg {
+      fwdMsg :: T.Text
+    }
+  deriving (Generic, Show, Eq, Ord)
 
 
 -- Instances/Derivations
@@ -48,14 +46,10 @@ deriving instance Generic Attr
 deriving instance Generic AttrValue
 instance ToJSON Attr
 instance ToJSON AttrValue
-instance ToJSON PubMsg
-instance ToJSON SubMsg
-instance ToJSON FwdMsg
+instance ToJSON Msg
 instance FromJSON Attr
 instance FromJSON AttrValue
-instance FromJSON PubMsg
-instance FromJSON SubMsg
-instance FromJSON FwdMsg
+instance FromJSON Msg
 
 
 -- Exception type

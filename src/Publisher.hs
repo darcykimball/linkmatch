@@ -15,7 +15,7 @@ import Event
 
 -- A stream of events is simulated by list of msgs, waiting a bit between
 -- each publish
-type EventSource = [PubMsg]
+type EventSource = [Msg]
 
 
 -- Run a publisher, calling upon a provided event source to get messages to
@@ -38,7 +38,7 @@ runPublisher schema brokerIP brokerPort eventSrc =
       else publish p brokerIP brokerPort
       
 
-publish :: PubMsg -> HostName -> ServiceName -> IO ()
+publish :: Msg -> HostName -> ServiceName -> IO ()
 publish event brokerIP brokerPort =
   connect brokerIP brokerPort $
     \(sock, _) -> send sock $ LB.toStrict $ encode event
@@ -52,5 +52,5 @@ ringN :: Int -> EventSource
 ringN n = replicate n ring
 
 
-ring :: PubMsg
+ring :: Msg
 ring = PubMsg ("ring ring ring") [Attr "bell" (Str "loud")] 

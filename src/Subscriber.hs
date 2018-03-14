@@ -59,4 +59,11 @@ validateReceived bytes =
   maybe
     (Left MalformedMsg)
     (Right . fwdMsg)
-    (decode $ LB.fromStrict bytes :: Maybe FwdMsg)
+    m
+
+  where
+    mMsg = decode $ LB.fromStrict bytes :: Maybe Msg
+    m = mMsg >>= isFwd
+
+    isFwd f@(FwdMsg _) = Just f
+    isFwd _ = Nothing
