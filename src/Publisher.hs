@@ -1,6 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Publisher where
 
 
+import Control.Concurrent
+import Control.Monad
 import Data.Aeson
 import Network.Simple.TCP
 
@@ -10,7 +13,9 @@ import Message
 import Event
 
 
-type EventSource = IO (Maybe PubMsg)
+-- A stream of events is simulated by list of msgs, waiting a bit between
+-- each publish
+type EventSource = [PubMsg]
 
 
 -- Run a publisher, calling upon a provided event source to get messages to
@@ -22,18 +27,30 @@ runPublisher ::
   EventSource ->
   IO ()
 runPublisher schema brokerIP brokerPort eventSrc =
-  eventSrc >>= 
-    maybe 
-      (return ())
-      (\p@(PubMsg msg attrs) -> do
-        let attrsOk = and $ map (attrIsConsistent schema) attrs
-        if not attrsOk
-          then putStrLn "inconsistent attributes in event, ignoring."
-          else publish p brokerIP brokerPort
-      )
+  forM_ eventSrc $ \event -> do
+    threadDelay 500    
+
+    let p@(PubMsg msg attrs) = event
+        attrsOk = and $ map (attrIsConsistent schema) attrs
+
+    if not attrsOk
+      then putStrLn "inconsistent attributes in event, ignoring."
+      else publish p brokerIP brokerPort
       
 
 publish :: PubMsg -> HostName -> ServiceName -> IO ()
 publish event brokerIP brokerPort =
   connect brokerIP brokerPort $
     \(sock, _) -> send sock $ LB.toStrict $ encode event
+
+
+ringForever :: EventSource
+ringForever = repeat ring
+
+
+ringN :: Int -> EventSource
+ringN n = replicate n ring
+
+
+ring :: PubMsg
+ring = PubMsg ("ring ring ring") [Attr "bell" (Str "loud")] 

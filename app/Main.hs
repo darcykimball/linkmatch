@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
 
@@ -19,10 +20,21 @@ main = do
     opts = info (brokerOpts <|> pubOpts <|> subOpts)
       (fullDesc <> progDesc "A pub/sub node daemon.")
 
+
+--
+-- Actual daemon run stuff 
+--
+
+
+start :: ModeCfg -> IO ()
+start BrokerCfg{..} = undefined
+start SubCfg{..} = undefined
+start PubCfg{..} = undefined
+
+
 --
 -- Command-line parsing stuff
 -- 
-
 
 
 brokerOpts :: Parser ModeCfg
