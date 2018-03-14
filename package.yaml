@@ -23,6 +23,8 @@ dependencies:
 - base >= 4.7 && < 5
 - optparse-applicative
 - network-simple
+- containers
+- text
 
 library:
   source-dirs: src
