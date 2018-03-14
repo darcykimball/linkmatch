@@ -46,7 +46,22 @@ data FwdMsg = FwdMsg {
 -- Instances/Derivations
 deriving instance Generic Attr
 deriving instance Generic AttrValue
+instance ToJSON Attr
+instance ToJSON AttrValue
+instance ToJSON PubMsg
+instance ToJSON SubMsg
+instance ToJSON FwdMsg
 instance FromJSON Attr
 instance FromJSON AttrValue
 instance FromJSON PubMsg
 instance FromJSON SubMsg
+instance FromJSON FwdMsg
+
+
+-- Exception type
+data PubSubError =
+    MalformedMsg
+  | UnreachableSub
+  | UnreachablePub
+  | UnreachableBroker
+  deriving (Show, Eq, Ord)

@@ -34,9 +34,16 @@ type EventSchema = M.Map AttrName AttrValue
 
 makeSchemaAttr :: Attr -> Attr
 makeSchemaAttr attr@(Attr _ val) = attr { _attrVal = defaultVal val }
-  where
-    defaultVal (Str _) = Str ""
-    defaultVal (Number _) = Number 0
+
+
+defaultVal :: AttrValue -> AttrValue
+defaultVal (Str _) = Str ""
+defaultVal (Number _) = Number 0
+
+
+attrIsConsistent :: EventSchema -> Attr -> Bool
+attrIsConsistent schema (Attr name val) =
+  M.lookup name schema == Just (defaultVal val)
 
 
 -- A published event, ready for processing
