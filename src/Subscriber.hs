@@ -35,12 +35,12 @@ runSubscriber preds myIP myPort brokerIP brokerPort = do
   forever $ do
     listen (Host myIP) myPort $ \(sock, _) -> do
       accept sock $ \(recvSock, _) -> do
-      mBytes <- recv recvSock 4096
+        mBytes <- recv recvSock 4096
 
-      maybe
-        (T.putStrLn "Received a message that was too big! Ignoring...")
-        handleReceived
-        mBytes 
+        maybe
+          (T.putStrLn "Received a message that was too big! Ignoring...")
+          handleReceived
+          mBytes 
 
 
 handleReceived :: B.ByteString -> IO ()
