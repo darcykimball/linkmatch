@@ -25,6 +25,7 @@ dependencies:
 - network-simple
 - containers
 - text
+- aeson
 
 library:
   source-dirs: src
