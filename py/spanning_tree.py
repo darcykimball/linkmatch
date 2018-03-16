@@ -42,6 +42,41 @@ def make_spanning_tree(broker_depth=2):
     return tree
 
 
+def tree_as_dict(topo, broker_links=None, root='s1'):
+    '''
+    Convert switch topology to a dict representation
+    '''
+    
+    treed = dict()
+
+    # Get just the broker links for top-level call
+    if broker_links is None:
+        broker_links = set((n1, n2) for n1, n2 in topo.links() \
+                if topo.isSwitch(n1) and topo.isSwitch(n2))
+
+
+    children = list()
+    if len(broker_links) > 0:
+        # Get outgoing edges from root
+        edges = [(n1, n2) for n1, n2 in broker_links \
+                if root == n1 or root == n2]
+        print edges
+        
+        for n1, n2 in edges:
+            broker_links.discard((n1, n2))
+
+            if n1 == root:
+                children.append(tree_as_dict(topo, broker_links, n2))
+            else:
+                children.append(tree_as_dict(topo, broker_links, n1))
+            
+
+    treed[root] = children
+
+    return treed
+
+
+
 def switch_hosts(topo):
     '''
     Get the directly-connected hosts to each switch in a topology.
@@ -68,7 +103,8 @@ def assign_roles(topo, root='s1'):
     '''
     Assign each host in a tree topology to a broker, subscriber, or publisher
     role.
-    Returns the info in a dict (intended to be serialized into JSON)
+    Returns the info in a dict mapping switches (1 per broker node) to a dict
+    of host rules
     '''
 
     hosts_map = switch_hosts(topo)
@@ -78,8 +114,9 @@ def assign_roles(topo, root='s1'):
         assert len(group) >= 3
 
     
-    roles = dict()
+    all_roles = dict()
     for switch, group in hosts_map.iteritems():
+        roles = dict()
         if switch == root:
             roles[group[0]] = 'publisher'
             roles[group[1]] = 'broker'
@@ -89,8 +126,10 @@ def assign_roles(topo, root='s1'):
             roles[group[0]] = 'broker'
             for host in group[1:]:
                 roles[host] = 'subscriber'
+
+        all_roles[switch] = roles
     
-    return roles
+    return all_roles
 
 
 def test_spanning_tree():
