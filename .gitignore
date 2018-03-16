@@ -2,3 +2,4 @@
 linkmatch.cabal
 *~
 *.swp
+*.pyc

@@ -18,7 +18,7 @@ import EqMatchTree
 data BrokerTopo sub = BrokerTopo {
     rootIP :: HostName
   , children :: [BrokerTopo sub]
-  , subIPs  :: [(HostName, sub)]
+  , subIPs  :: [(HostName, [sub])]
   }
   deriving (Show, Eq, Ord, Generic)
 
@@ -27,7 +27,7 @@ instance FromJSON sub => FromJSON (BrokerTopo sub)
 instance ToJSON sub => ToJSON (BrokerTopo sub)
 
 
-getSubs :: BrokerTopo sub -> [(HostName, sub)]
+getSubs :: BrokerTopo sub -> [(HostName, [sub])]
 getSubs BrokerTopo{..} =
   subIPs ++ concatMap getSubs children
 

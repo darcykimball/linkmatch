@@ -7,6 +7,7 @@ import Data.Aeson
 import Data.Monoid ((<>))
 import Network.Simple.TCP
 import Options.Applicative
+import System.IO
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
@@ -22,8 +23,12 @@ import Event
 
 main :: IO ()
 main = do
+  -- XXX: Mainly for debugging
+  hSetBuffering stdout NoBuffering
+
   modeCfg <- execParser opts
   print modeCfg    
+  start modeCfg
   where
     opts = info (brokerOpts <|> pubOpts <|> subOpts)
       (fullDesc <> progDesc "A pub/sub node daemon.")
@@ -39,7 +44,7 @@ start BrokerCfg{..} = do
   -- Read in topology file
   schema <- readSchema _brokerSchemaPath
 
-  undefined
+  error "TODO"
 
 start SubCfg{..} = do
   -- Read in subs file

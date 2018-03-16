@@ -2,6 +2,7 @@
 module EqMatchTree where
 
 
+import Control.Monad
 import Data.List
 
 import qualified Data.List.NonEmpty as NE
@@ -10,13 +11,13 @@ import qualified Data.Map.Strict as M
 import Event
 
 
-data EqMatchTree sub =
+data EqMatchTree subid =
     Empty
-  -- The set of subscribers for this pred. path
-  | Leaf (NE.NonEmpty sub) 
+  -- The set of subidscribers for this pred. path
+  | Leaf (NE.NonEmpty subid) 
   -- Outgoing edges are either an attribute value to test equality with, or
   -- Nothing, representing (*).
-  | Branch Attr (NE.NonEmpty (Maybe AttrValue, EqMatchTree sub))
+  | Branch Attr (NE.NonEmpty (Maybe AttrValue, EqMatchTree subid))
   deriving (Eq, Ord, Show, Functor)
 
 
@@ -28,7 +29,7 @@ data EqMatchTree sub =
 type Predicate = [Attr]
 
 
-empty :: EqMatchTree sub
+empty :: EqMatchTree subid
 empty =  Empty
 
 
@@ -36,24 +37,28 @@ empty =  Empty
 -- supplied schema, returns Nothing.
 buildFromPredicates ::
   EventSchema ->
-  [(sub, Predicate)] ->
-  Maybe (EqMatchTree sub)
-buildFromPredicates schema subPreds = foldl' addSubPred (Just Empty) subPreds
+  [(subid, [Predicate])] ->
+  Maybe (EqMatchTree subid)
+buildFromPredicates schema subidPreds =
+  foldM
+    (\tree (subid, preds) -> foldM (\t p -> addSub p subid t) tree preds)
+    Empty
+    subidPreds 
   where
-    addSubPred mTree (sub, pred) = mTree >>= addSubscriberPred schema pred sub
+    addSub = addSubscriberPred schema
 
 
--- Add a subscriber to the matching tree. If supplied predicates are
+-- Add a subidscriber to the matching tree. If supplied predicates are
 -- inconsistent with the supplied schema, returns Nothing
 addSubscriberPred ::
   EventSchema ->
   Predicate ->
-  sub ->
-  EqMatchTree sub ->
-  Maybe (EqMatchTree sub)
-addSubscriberPred schema pred sub tree
-  | predIsConsistent schema pred = Nothing
-  | otherwise = undefined
+  subid ->
+  EqMatchTree subid ->
+  Maybe (EqMatchTree subid)
+addSubscriberPred schema pred subid tree
+  | otherwise = Nothing
+  | predIsConsistent schema pred = undefined
       where
         schemaAttrs = M.assocs schema -- stack of sorted schema attrs
         tests = sort $ map toP pred -- assoc. list of tests to results
@@ -61,7 +66,7 @@ addSubscriberPred schema pred sub tree
         -- Easier to just canonicalize: TODO
 
 
-lookupSubscribers :: [Attr] -> EqMatchTree sub -> [sub]
+lookupSubscribers :: [Attr] -> EqMatchTree subid -> [subid]
 lookupSubscribers attrs tree =
   case tree of
     _ -> undefined 
