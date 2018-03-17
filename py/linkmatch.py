@@ -1,12 +1,15 @@
-#!/usr/bin/python
+#!/usr/bin/python -u 
 
 
+import argparse
 import json
+import os
+import time
 
 from mininet.net import Mininet
-from spanning_tree import make_spanning_tree, assign_roles, switch_hosts, \
-        tree_as_dict
+from mininet.log import setLogLevel
 
+from spanning_tree import *
 from cfgjson import *
 
 
@@ -31,15 +34,25 @@ def broker_topo(net, schema_vals, treed=None, roles=None, root='s1', nsub=1):
 
     rootIP = net.get(root).IP()
 
-    children = [broker_topo(net, schema_vals, child, roles, child.keys()[0]) \
-            for child in treed[root]]
+    
+    # Depth first for no particular reason
+    children = list()
+    host_subs = dict()
+    for child in treed[root]:
+        c_topod, c_host_subs = broker_topo( \
+                net, schema_vals, child, roles, child.keys()[0])
+        children.append(c_topod)
+
+        for h, s in c_host_subs.iteritems():
+            host_subs[h] = s
+
     
     subIPs = list()
     for host, role in roles[root].iteritems():
         if role == 'subscriber':
-            preds = [pred for pred in random_predicate(nsub, schema_vals)]
+            preds = [predicate(pred) for pred in random_predicate(nsub, schema_vals)]
             subIPs.append([net.get(host).IP(), preds])
-
+            host_subs[host] = preds 
 
 
     topod = {   
@@ -48,11 +61,12 @@ def broker_topo(net, schema_vals, treed=None, roles=None, root='s1', nsub=1):
         'subIPs': subIPs,
         }
 
-    return topod
+    return topod, host_subs
 
 
-if __name__ == '__main__':
+def test_linkmatch(script_dir, log_dir):
     topo = make_spanning_tree()
+
 
     hosts_map = switch_hosts(topo)
     print (hosts_map)
@@ -71,9 +85,48 @@ if __name__ == '__main__':
         ('color', 'Str') : ['red', 'brown', 'black', 'spotted'],             
         }                                                                    
 
+    schema = dict(schema_vals.keys())
+
 
     net = Mininet(topo)
 
+    # Set up broker topology
+    btopo, host_subs = broker_topo(net, schema_vals)
+    print btopo
 
-    btopo = broker_topo(net, schema_vals)
-    print json.dumps(json.dumps(btopo))
+
+    with open(os.path.join(log_dir, 'topo.json'), 'w+') as f:
+        json.dump(btopo, f)
+
+
+    # Set up daemon config files
+    schema_path = os.path.join(log_dir, 'schema.json')
+    with open(schema_path, 'w+') as f:
+        json.dump(schema, f)
+    
+    print host_subs
+
+    for subscriber, preds in host_subs.iteritems():
+        with open(os.path.join(log_dir, subscriber + '_preds.json'), 'w+') as f:
+            json.dump(preds, f)
+
+
+    # Let's go
+    net.start()
+
+    net.pingAll()   
+
+    net.stop()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='A small test')
+    parser.add_argument('script_dir', type=str)
+    parser.add_argument('log_dir', type=str)      
+
+    args = parser.parse_args()                          
+
+
+    script_dir = os.path.abspath(args.script_dir)
+    log_dir = os.path.abspath(args.log_dir) 
+    test_linkmatch(script_dir, log_dir)
