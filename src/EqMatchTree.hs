@@ -39,7 +39,7 @@ empty =  Empty
 
 -- Build a matching tree. If supplied predicates are inconsistent with the
 -- supplied schema, returns Nothing.
-buildFromPredicates ::
+buildFromPredicates :: Eq subid =>
   EventSchema ->
   [(subid, [Predicate])] ->
   Maybe (EqMatchTree subid)
@@ -54,7 +54,7 @@ buildFromPredicates schema subidPreds =
 
 -- Add a subscriber to the matching tree. If supplied predicates are
 -- inconsistent with the supplied schema, returns Nothing
-addSubscriberPred :: forall subid.
+addSubscriberPred :: forall subid. Eq subid =>
   EventSchema ->
   Predicate ->
   subid ->
@@ -86,22 +86,22 @@ addSubscriberPred schema pred subid tree = do
               attr = Attr name val
           return $ Branch attr ((mVal, child) NE.:| [])
         
-        Leaf subs -> return $ Leaf $ NE.cons subid subs
+        Leaf _ -> error "Inconsistent predicate: leaf reached too early!"
         
         Branch nm children ->
           if null matchedEdges
 
             then do 
               child <- insert as ts Empty
-              return $ Branch nm ((Nothing, child)  NE.<| children)
+              return $ Branch nm ((mVal, child)  NE.<| children)
 
             else do
               matchedChildren <- forM matchedEdges $ \(val, child) -> do
                                     newChild <- insert as ts child
-                                    return (val, child)
+                                    return (val, newChild)
 
               return $
-                Branch nm (NE.fromList matchedChildren <> NE.fromList restEdges)
+                Branch nm (NE.fromList (matchedChildren <> restEdges))
 
           where
             (matchedEdges, restEdges) = NE.partition ((== mVal) . fst) children
@@ -109,14 +109,24 @@ addSubscriberPred schema pred subid tree = do
       where 
         (name, mVal) = t
       
-    insert [] [] t = return t
+    insert [] [] curr =
+      case curr of
+        -- Followed to end, no subscribers for this predicate yet      
+        Empty -> return $ Leaf (subid NE.:| [])
+
+        -- Followed to end, append this subscriber to the current set
+        Leaf subids -> return $ Leaf (NE.nub (subid NE.<| subids))
+
+        -- We've exhausted our schema/predicate before reaching a leaf.
+        -- This tree must be inconsistent.
+        _ -> error "Inconsistent tree: haven't reached leaf yet!"
     insert _  _  _ = error "Canonicalized predicate doesn't match schema!"
 
 
 lookupSubscribers :: [Attr] -> EqMatchTree subid -> [subid]
 lookupSubscribers attrs tree =
   case tree of
-    _ -> undefined
+    _ -> error "TODO"
   where
     sorted = sortOn _attrName attrs
       

@@ -19,6 +19,7 @@ import Subscriber
 import Publisher
 import EqMatchTree
 import Event
+import Topo
 
 
 main :: IO ()
@@ -41,10 +42,12 @@ main = do
 
 start :: ModeCfg -> IO ()
 start BrokerCfg{..} = do
-  -- Read in topology file
+  -- Read in topology file and schema
+  topo <- readTopo  _brokerTopoPath
   schema <- readSchema _brokerSchemaPath
+  
+  runBrokerSimple schema _brokerIP _brokerPort topo
 
-  error "TODO"
 
 start SubCfg{..} = do
   -- Read in subs file
@@ -67,6 +70,16 @@ start PubCfg{..} = do
 --
 
 
+readTopo :: FilePath -> IO (BrokerTopo Predicate)
+readTopo path = do
+  topoText <- B.readFile path
+
+  maybe
+    (error "Bad topo file!")
+    return 
+    (decode $ LB.fromStrict topoText)
+
+
 readSchema :: FilePath -> IO EventSchema
 readSchema path = do
   schemaText <- B.readFile path
@@ -82,7 +95,7 @@ readPreds path = do
   predsText <- B.readFile path
 
   maybe
-    (error "Bad schema file!")
+    (error "Bad preds file!")
     return 
     (decode (LB.fromStrict predsText) :: Maybe [Predicate])
 
@@ -93,7 +106,7 @@ readPreds path = do
 
 
 brokerOpts :: Parser ModeCfg
-brokerOpts = brokerFlag *> (BrokerCfg <$> myIP <*> myPort <*> schemaPath)
+brokerOpts = brokerFlag *> (BrokerCfg <$> myIP <*> myPort <*> schemaPath <*> topoPath)
 
 
 pubOpts :: Parser ModeCfg
@@ -114,6 +127,7 @@ brokerPort = strOption (long "broker_port" <> metavar "PORT")
 myIP = strOption (long "my_ip" <> metavar "IP")
 myPort = strOption (long "my_port" <> metavar "PORT")
 schemaPath = strOption (long "schema" <> metavar "SCHEMA_FILE")
+topoPath = strOption (long "topo" <> metavar "TOPO_FILE")
 predicatesPath = strOption (long "predicates" <> metavar "PREDS_FILE")
 
 
@@ -122,6 +136,7 @@ data ModeCfg =
       _brokerIP :: HostName
     , _brokerPort :: ServiceName
     , _brokerSchemaPath :: FilePath
+    , _brokerTopoPath :: FilePath
     }
   | PubCfg {
       _pubBrokerIP :: HostName

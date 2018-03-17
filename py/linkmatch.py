@@ -27,10 +27,6 @@ def broker_topo(net, schema_vals, treed=None, roles=None, root='s1', nsub=1):
     if treed is None:
         treed = tree_as_dict(topo)
 
-    
-    print 'constructing broker topology with roles:\n', roles
-    print 'constructing broker topology with switch tree:\n', treed
-
 
     rootIP = net.get(root).IP()
 
@@ -64,8 +60,8 @@ def broker_topo(net, schema_vals, treed=None, roles=None, root='s1', nsub=1):
     return topod, host_subs
 
 
-def test_linkmatch(script_dir, log_dir):
-    topo = make_spanning_tree()
+def test_linkmatch(script_dir, log_dir, depth=2):
+    topo = make_spanning_tree(1)
 
 
     hosts_map = switch_hosts(topo)
@@ -85,7 +81,7 @@ def test_linkmatch(script_dir, log_dir):
         ('color', 'Str') : ['red', 'brown', 'black', 'spotted'],             
         }                                                                    
 
-    schema = dict(schema_vals.keys())
+    schema = event_schema(dict(schema_vals.keys()))
 
 
     net = Mininet(topo)
@@ -96,19 +92,19 @@ def test_linkmatch(script_dir, log_dir):
 
 
     with open(os.path.join(log_dir, 'topo.json'), 'w+') as f:
-        json.dump(btopo, f)
+        json.dump(btopo, f, indent=2)
 
 
     # Set up daemon config files
     schema_path = os.path.join(log_dir, 'schema.json')
     with open(schema_path, 'w+') as f:
-        json.dump(schema, f)
+        json.dump(schema, f, indent=2)
     
     print host_subs
 
     for subscriber, preds in host_subs.iteritems():
         with open(os.path.join(log_dir, subscriber + '_preds.json'), 'w+') as f:
-            json.dump(preds, f)
+            json.dump(preds, f, indent=2)
 
 
     # Let's go

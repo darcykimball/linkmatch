@@ -27,9 +27,18 @@ runBrokerSimple ::
   BrokerTopo Predicate -> -- Broker topology
   IO ()
 runBrokerSimple schema myIP myPort topo = forever $ do
+  putStrLn "Starting broker with topo:"
+  print topo 
+
+
   if isNothing mTree then error "Bad topo/tree!" else return ()
 
+
   let Just tree = mTree
+
+  putStrLn "Made matching tree:"
+  print tree
+
   listen (Host myIP) myPort $ \(sock, _) -> do
     accept sock $ \(recvSock, _) -> do
       mBytes <- recv recvSock 4096 

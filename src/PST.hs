@@ -1,4 +1,4 @@
-module PST where
+module PST () where
 
 
 import Data.List.NonEmpty
