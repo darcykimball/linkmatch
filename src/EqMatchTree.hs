@@ -1,9 +1,13 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveFunctor #-}
 module EqMatchTree where
 
 
+import Control.Arrow (second)
 import Control.Monad
 import Data.List
+import Data.Semigroup ((<>))
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as M
@@ -48,28 +52,71 @@ buildFromPredicates schema subidPreds =
     addSub = addSubscriberPred schema
 
 
--- Add a subidscriber to the matching tree. If supplied predicates are
+-- Add a subscriber to the matching tree. If supplied predicates are
 -- inconsistent with the supplied schema, returns Nothing
-addSubscriberPred ::
+addSubscriberPred :: forall subid.
   EventSchema ->
   Predicate ->
   subid ->
   EqMatchTree subid ->
   Maybe (EqMatchTree subid)
-addSubscriberPred schema pred subid tree
-  | otherwise = Nothing
-  | predIsConsistent schema pred = undefined
-      where
-        schemaAttrs = M.assocs schema -- stack of sorted schema attrs
-        tests = sort $ map toP pred -- assoc. list of tests to results
+addSubscriberPred schema pred subid tree = do
+  guard $ predIsConsistent schema pred
+
+  maybe
+    Nothing
+    (\c -> insert schemaAttrs c tree)
+    canonicalized 
+
+  where
+    schemaAttrs = M.assocs schema -- stack of sorted schema attrs
+    canonicalized = canonPred schema pred -- assoc. list of tests to results
+    
+    insert ::
+      [(AttrName, AttrValue)] ->
+      [(AttrName, Maybe AttrValue)] ->
+      EqMatchTree subid ->
+      Maybe (EqMatchTree subid)
+    insert (a:as) (t:ts) curr =
+      case curr of
+        Empty -> do
+          child <- insert as ts Empty
+
+          let val = maybe (Str "") defaultVal mVal
+              attr = Attr name val
+          return $ Branch attr ((mVal, child) NE.:| [])
         
-        -- Easier to just canonicalize: TODO
+        Leaf subs -> return $ Leaf $ NE.cons subid subs
+        
+        Branch nm children ->
+          if null matchedEdges
+
+            then do 
+              child <- insert as ts Empty
+              return $ Branch nm ((Nothing, child)  NE.<| children)
+
+            else do
+              matchedChildren <- forM matchedEdges $ \(val, child) -> do
+                                    newChild <- insert as ts child
+                                    return (val, child)
+
+              return $
+                Branch nm (NE.fromList matchedChildren <> NE.fromList restEdges)
+
+          where
+            (matchedEdges, restEdges) = NE.partition ((== mVal) . fst) children
+
+      where 
+        (name, mVal) = t
+      
+    insert [] [] t = return t
+    insert _  _  _ = error "Canonicalized predicate doesn't match schema!"
 
 
 lookupSubscribers :: [Attr] -> EqMatchTree subid -> [subid]
 lookupSubscribers attrs tree =
   case tree of
-    _ -> undefined 
+    _ -> undefined
   where
     sorted = sortOn _attrName attrs
       
@@ -84,13 +131,12 @@ predIsConsistent schema attrs =
 
 -- Check if a predicate is ok with a schema, and add wildcards if necessary
 canonPred :: EventSchema -> Predicate -> Maybe [(AttrName, Maybe AttrValue)]
-canonPred schema pred =
-  if predIsConsistent schema pred
-    then Nothing
-    else Just canonicalized
+canonPred schema pred = do
+  guard $ predIsConsistent schema pred
+  return canonicalized
   where
     assocPred = map toP pred
-    canonicalized = map makeTest $ M.keys schema
+    canonicalized = sortOn fst $ map makeTest $ M.keys schema
     makeTest name =
       maybe
         (name, Nothing)
